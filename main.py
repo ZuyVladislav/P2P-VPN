@@ -3,7 +3,10 @@
 Главная точка входа VPN-приложения.
 """
 import sys
+import logging
 from PyQt5.QtWidgets import QApplication
+
+from utils import setup_logging
 
 from ui.login_dialog import LoginDialog
 from ui.network_view import NetworkView
@@ -12,6 +15,7 @@ from ui.network_view import NetworkView
 from network.discovery import DiscoveryResponder      #  ← 1
 
 def main() -> None:
+    setup_logging(logging.DEBUG)
     app = QApplication(sys.argv)
 
     login_dlg = LoginDialog()
