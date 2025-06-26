@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QMainWindow, QWidget, QLabel, QTableWidget, QTableWidgetItem, QPushButton, QTextEdit, \
-    QHBoxLayout, QVBoxLayout, QMessageBox, QAbstractItemView
+    QHBoxLayout, QVBoxLayout, QMessageBox, QAbstractItemView, QDialog
 from PyQt5.QtCore import QObject, pyqtSignal, Qt
 import logging
 from ui.connect_dialog import ConnectDialog
@@ -35,28 +35,24 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(user_label)
 
         # Таблица других пользователей
-        other_users = [u for u in USERS.keys() if u != self.current_user]
+        self.users = list(USERS.keys())
+        other_users = [u for u in self.users if u != self.current_user]
         self.user_table = QTableWidget(len(other_users), 3)
         self.user_table.setHorizontalHeaderLabels(["Пользователь", "Статус", ""])
         self.user_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.user_table.setSelectionMode(QAbstractItemView.NoSelection)
 
         # Заполняем таблицу данными о пользователях
-        # Предполагаем, что оркестратор может предоставить список онлайн-узлов
-        try:
-            online_peers = set(self.orchestrator.get_online_peers())
-        except AttributeError:
-            online_peers = set()  # если метод недоступен, считаем всех офлайн (или все онлайн по умолчанию)
+        total_users_count = len(self.users)
         for row, user in enumerate(other_users):
             # Имя
             self.user_table.setItem(row, 0, QTableWidgetItem(user))
-            # Статус (онлайн/офлайн)
-            status = "В сети" if user in online_peers else "Не в сети"
-            status_item = QTableWidgetItem(status)
+            # Статус
+            status_item = QTableWidgetItem("В сети")
             self.user_table.setItem(row, 1, status_item)
             # Кнопка "Соединиться"
             btn = QPushButton("Соединиться")
-            btn.setEnabled(status == "В сети")
+            btn.setEnabled(total_users_count >= 4)
             btn.clicked.connect(lambda _, u=user: self.on_connect_clicked(u))
             self.user_table.setCellWidget(row, 2, btn)
         main_layout.addWidget(self.user_table)
@@ -97,28 +93,16 @@ class MainWindow(QMainWindow):
                                      f"Не удалось подключиться:\n{e.__class__.__name__}: {e}")
 
     def on_check_subscribers(self):
-        """Обновление статусов (онлайн/офлайн) других пользователей, по запросу."""
+        """Обновление статусов других пользователей по запросу."""
         if hasattr(self.orchestrator, "check_peers"):
             # Если оркестратор поддерживает явную проверку узлов сети
             self.orchestrator.check_peers()
-        # Обновим таблицу статусов на основе текущих данных оркестратора
-        try:
-            online_peers = set(self.orchestrator.get_online_peers())
-        except AttributeError:
-            online_peers = set()
         for row in range(self.user_table.rowCount()):
             user = self.user_table.item(row, 0).text()
-            if user in online_peers:
-                self.user_table.item(row, 1).setText("В сети")
-                # Активируем кнопку, если ранее была выключена
-                cell_widget = self.user_table.cellWidget(row, 2)
-                if cell_widget:
-                    cell_widget.setEnabled(True)
-            else:
-                self.user_table.item(row, 1).setText("Не в сети")
-                cell_widget = self.user_table.cellWidget(row, 2)
-                if cell_widget:
-                    cell_widget.setEnabled(False)
+            self.user_table.item(row, 1).setText("В сети")
+            cell_widget = self.user_table.cellWidget(row, 2)
+            if cell_widget:
+                cell_widget.setEnabled(len(self.users) >= 4)
 
     def closeEvent(self, event):
         """Обработчик закрытия главного окна."""

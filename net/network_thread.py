@@ -220,8 +220,8 @@ class NetworkThread(QThread):
         # 3. Create KDContext and Orchestrator for this connection (responder side)
         try:
             # Import inside method to avoid import conflicts or circular dependencies
-            from orchestrator import Orchestrator
-            from kdcontext import KDContext
+            from .orchestrator import Orchestrator
+            from .kdcontext import KDContext
             # Initialize context with remote identifier and socket, then create orchestrator
             context = KDContext(remote_id, conn)
             orchestrator = Orchestrator(context, responder=True)
