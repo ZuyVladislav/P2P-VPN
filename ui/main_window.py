@@ -16,12 +16,16 @@ class LogHandler(logging.Handler, QObject):
         self.new_log.emit(msg)
 
 class MainWindow(QMainWindow):
-    def __init__(self, current_user: str, orchestrator, parent=None):
+    def __init__(self, current_user, orchestrator, parent=None):
         super(MainWindow, self).__init__(parent)
-        self.current_user = current_user
+        # Если current_user передан как словарь, извлекаем логин, иначе используем строку
+        if isinstance(current_user, dict):
+            self.current_user = current_user["login"]
+        else:
+            self.current_user = current_user
         self.orchestrator = orchestrator
 
-        self.setWindowTitle(f"Протокол Handshake – Пользователь {current_user}")
+        self.setWindowTitle(f"Протокол Handshake – Пользователь {self.current_user}")
         self.resize(600, 400)
 
         # Центральный виджет и основной layout
@@ -57,7 +61,7 @@ class MainWindow(QMainWindow):
             self.user_table.setCellWidget(row, 2, btn)
         main_layout.addWidget(self.user_table)
 
-        # Поле для вывода журнала (логов) handshake-процесса
+        # Поле для вывода журнала handshake-процесса
         self.log_edit = QTextEdit()
         self.log_edit.setReadOnly(True)
         self.log_edit.setPlaceholderText("Журнал handshake-процесса...")
@@ -84,13 +88,12 @@ class MainWindow(QMainWindow):
 
     def on_connect_clicked(self, target_user: str):
         """Запрос на установление соединения с выбранным пользователем."""
-        dialog = ConnectDialog(target_user, parent=self)
+        dialog = ConnectDialog(parent=self, target_user=target_user)
         if dialog.exec_() == QDialog.Accepted:
             try:
                 self.orchestrator.initiate_handshake(target_user)
             except Exception as e:
-                QMessageBox.critical(self, "Ошибка",
-                                     f"Не удалось подключиться:\n{e.__class__.__name__}: {e}")
+                QMessageBox.critical(self, "Ошибка", f"Не удалось подключиться:\n{e.__class__.__name__}: {e}")
 
     def on_check_subscribers(self):
         """Обновление статусов других пользователей по запросу."""
@@ -111,7 +114,6 @@ class MainWindow(QMainWindow):
 
     def on_incoming_request(self, handshake_id: int, remote_id: str):
         """Слот, вызываемый при входящем запросе на соединение."""
-        # Показываем диалог с вопросом о принятии соединения
         reply = QMessageBox.question(
             self,
             "Входящий запрос",
