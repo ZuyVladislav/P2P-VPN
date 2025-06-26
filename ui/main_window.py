@@ -68,7 +68,7 @@ class MainWindow(QMainWindow):
         self.refresh_btn = QPushButton("Проверить абонентов")
         self.refresh_btn.clicked.connect(self.on_check_subscribers)
         btn_panel.addWidget(self.refresh_btn)
-        btn_panel.addStretch(1)  # раздвигает кнопки по сторонам
+        btn_panel.addStretch(1)
         self.exit_btn = QPushButton("Выход")
         self.exit_btn.clicked.connect(self.close)
         btn_panel.addWidget(self.exit_btn)
@@ -95,7 +95,6 @@ class MainWindow(QMainWindow):
     def on_check_subscribers(self):
         """Обновление статусов других пользователей по запросу."""
         if hasattr(self.orchestrator, "check_peers"):
-            # Если оркестратор поддерживает явную проверку узлов сети
             self.orchestrator.check_peers()
         for row in range(self.user_table.rowCount()):
             user = self.user_table.item(row, 0).text()
@@ -109,3 +108,21 @@ class MainWindow(QMainWindow):
         logging.getLogger().removeHandler(self.log_handler)
         logging.shutdown()
         event.accept()
+
+    def on_incoming_request(self, handshake_id: int, remote_id: str):
+        """Слот, вызываемый при входящем запросе на соединение."""
+        # Показываем диалог с вопросом о принятии соединения
+        reply = QMessageBox.question(
+            self,
+            "Входящий запрос",
+            f"Пользователь {remote_id} хочет подключиться.\nПринять соединение?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            # Пользователь согласился на входящее соединение
+            if hasattr(self, 'net_thread'):
+                self.net_thread.accept_connection(handshake_id)
+        else:
+            # Пользователь отклонил входящее соединение
+            if hasattr(self, 'net_thread'):
+                self.net_thread.decline_connection(handshake_id)
